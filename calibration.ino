@@ -23,7 +23,9 @@ void setup() {
 void loop() {
   if (Serial.available() > 0) {
     char command = Serial.read();
-    if (command == 'c') {
+    if (command == 'z') {
+      zeroLoadCells();
+    } else if (command == 'c') {
       calibrate();
     } else if (command == 's') {
       streamReadings();
@@ -33,19 +35,33 @@ void loop() {
   }
 }
 
+void zeroLoadCells() {
+  Serial.println("Zeroing load cells...");
+  for (int i = 0; i < numLoadCells; i++) {
+    Serial.print("Zeroing load cell ");
+    Serial.println(i);
+    loadCells[i]->tare();
+  }
+  Serial.println("Zeroing complete.");
+}
+
 void calibrate() {
   Serial.println("Starting calibration...");
   for (int i = 0; i < numLoadCells; i++) {
     Serial.print("Calibrating load cell ");
     Serial.println(i);
-    loadCells[i]->tare();
-    Serial.println("Tare complete. Place a known mass on the load cell and enter its weight:");
+    Serial.println("Place a known mass on the load cell and enter its weight:");
 
     float known_mass = 0;
-    while (Serial.available() == 0) {
-      delay(10);
+    while (known_mass == 0) {
+      while (Serial.available() == 0) {
+        delay(10);
+      }
+      known_mass = Serial.parseFloat();
+      if (known_mass == 0) {
+        Serial.println("You must place a mass > 0");
+      }
     }
-    known_mass = Serial.parseFloat();
     Serial.print("You have placed mass: ");
     Serial.println(known_mass);
     
@@ -77,14 +93,18 @@ void streamReadings() {
 
     for (int i = 0; i < numLoadCells; i++) {
       if (loadCells[i]->update()) {
-        float reading = loadCells[i]->getData();
-        Serial.print("Load cell ");
-        Serial.print(i);
-        Serial.print(": ");
-        Serial.println(reading);
+        for (int j = 0; j < numLoadCells; j++) {
+          float reading = loadCells[j]->getData();
+          Serial.print(reading);
+          if (j < numLoadCells - 1) {
+            Serial.print(", ");
+          }
+        }
+        Serial.println();
+        break; // Break out of the loop once values have been printed
       }
     }
-    delay(10); // Adjust the delay as needed
+    delay(20); // Adjust the delay as needed
   }
 }
 
